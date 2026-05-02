@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
-import { AUTH_COOKIE_NAME } from "./lib/constants";
-import { verifySessionToken } from "./lib/jwt";
+import { AUTH_COOKIE_NAME } from "./lib/auth/constants";
+import { verifySessionToken } from "./lib/auth/jwt";
 
 const protectedPrefixes = ["/dashboard", "/expenses", "/insights"]
 const authRoutes = ["/login", "/register"]
