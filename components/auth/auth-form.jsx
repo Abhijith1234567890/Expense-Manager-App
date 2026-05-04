@@ -32,7 +32,7 @@ export function AuthForm({ mode }) {
         password,
       }),
       headers: {
-        "Contect-Type": "application/json",
+        "Content-Type": "application/json",
       },
       method: "POST",
     });
