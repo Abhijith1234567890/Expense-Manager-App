@@ -1,9 +1,10 @@
 import { createSlice } from "@reduxjs/toolkit";
-const emptySummery = {
+
+const emptySummary = {
   categoryTotals: [],
   count: 0,
   totalAmount: 0,
-  totalClient:0
+  totalCents: 0
 }
 
 const initialState = {
@@ -16,7 +17,7 @@ const initialState = {
   },
   currentPageTotalCents: 0,
   expenses: [],
-  summery: emptySummery
+  summary: emptySummary
 }
 
 const expenseSlice = createSlice({
@@ -32,8 +33,8 @@ const expenseSlice = createSlice({
     },
     setExpenseSnapshot(state, action) {
       state.expenses = action.payload.expenses
-      state.summery = action.payload.summery
-      state.currentPageTotalCents = action.payload.expenses.reducer((total, expense) => total + expense.amountCents, 0)
+      state.summary = action.payload.summary
+      state.currentPageTotalCents = action.payload.expenses.reduce((total, expense) => total + expense.amountCents, 0)
     },
     setMonthFilter(state, action) {
       state.filters.month = action.payload

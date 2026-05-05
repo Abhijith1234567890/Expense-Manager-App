@@ -15,37 +15,10 @@ import { useAppDispatch } from "@/store/hooks";
 
 export function ExpenseFilters({ filters }) {
   const dispatch = useAppDispatch();
-  const [searchDraft, setSearchDraft] = useState(filters.search);
-
-  useEffect(() => {
-    setSearchDraft(filters.search);
-  }, [filters.search]);
-
-  useEffect(() => {
-    const timeout = setTimeout(() => {
-      if (searchDraft !== filters.search) {
-        dispatch(setSearchFilter(searchDraft));
-      }
-    }, 3000);
-
-    return () => clearTimeout(timeout);
-  }, [dispatch, filters.search, searchDraft]);
 
   return (
     <section className="grid gap-3 rounded-lg border border-line bg-white p-4 shadow-soft lg:grid-cols-[minmax(220px,1fr)_180px_170px_150px_auto]">
-      <label className="relative block">
-        <span className="sr-only">Search expenses</span>
-        <Search
-          className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted"
-          size={16}
-        />
-        <TextInput
-          className="pl-9"
-          onChange={(e) => setSearchDraft(e.target.value)}
-          placeholder="Search by title"
-          value={searchDraft}
-        />
-      </label>
+      <ExpenseSearchFilter key={filters.search} search={filters.search} />
       <label>
         <span className="sr-only">Category</span>
         <SelectInput
@@ -88,5 +61,36 @@ export function ExpenseFilters({ filters }) {
         Reset
       </Button>
     </section>
+  );
+}
+
+function ExpenseSearchFilter({ search }) {
+  const dispatch = useAppDispatch();
+  const [searchDraft, setSearchDraft] = useState(search);
+
+  useEffect(() => {
+    const timeout = setTimeout(() => {
+      if (searchDraft !== search) {
+        dispatch(setSearchFilter(searchDraft));
+      }
+    }, 3000);
+
+    return () => clearTimeout(timeout);
+  }, [dispatch, search, searchDraft]);
+
+  return (
+    <label className="relative block">
+      <span className="sr-only">Search expenses</span>
+      <Search
+        className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted"
+        size={16}
+      />
+      <TextInput
+        className="pl-9"
+        onChange={(e) => setSearchDraft(e.target.value)}
+        placeholder="Search by title"
+        value={searchDraft}
+      />
+    </label>
   );
 }

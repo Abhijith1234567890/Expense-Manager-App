@@ -1,6 +1,6 @@
 "use client";
 import { CalendarDays, CircleDollarSign, Save, X } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Field,
@@ -12,7 +12,6 @@ import {
   EXPENSE_CATEGORIES,
   expenseMutationSchema,
 } from "@/lib/validations/expense";
-import { parse } from "next/dist/build/swc";
 
 function toDateInputValue(date) {
   if (!date) {
@@ -35,21 +34,35 @@ function issuesToErrors(issues) {
 }
 
 export function ExpenseForm({ expense, isSubmitting, onCancel, onSubmit }) {
-  const [title, setTitle] = useState("");
-  const [amount, setAmount] = useState("");
-  const [category, setCategory] = useState("Food");
-  const [date, setDate] = useState(toDateInputValue());
-  const [notes, setNotes] = useState("");
-  const [errors, setErrors] = useState({});
+  return (
+    <ExpenseFormFields
+      expense={expense}
+      isSubmitting={isSubmitting}
+      key={expense?.id ?? "new"}
+      onCancel={onCancel}
+      onSubmit={onSubmit}
+    />
+  );
+}
 
-  useEffect(() => {
-    setTitle(expense?.title ?? "");
-    setAmount(expense ? String(expense.amount) : "");
-    setCategory(expense?.category ?? "Food");
-    setDate(toDateInputValue(expense?.date));
-    setNotes(expense?.notes ?? "");
-    setErrors({});
-  }, [expense]);
+function getInitialValues(expense) {
+  return {
+    amount: expense ? String(expense.amount) : "",
+    category: expense?.category ?? "Food",
+    date: toDateInputValue(expense?.date),
+    notes: expense?.notes ?? "",
+    title: expense?.title ?? "",
+  };
+}
+
+function ExpenseFormFields({ expense, isSubmitting, onCancel, onSubmit }) {
+  const initialValues = getInitialValues(expense);
+  const [title, setTitle] = useState(initialValues.title);
+  const [amount, setAmount] = useState(initialValues.amount);
+  const [category, setCategory] = useState(initialValues.category);
+  const [date, setDate] = useState(initialValues.date);
+  const [notes, setNotes] = useState(initialValues.notes);
+  const [errors, setErrors] = useState({});
 
   async function handleSubmit(e) {
     e.preventDefault();
@@ -70,11 +83,12 @@ export function ExpenseForm({ expense, isSubmitting, onCancel, onSubmit }) {
 
     const saved = await onSubmit(parsed.data);
     if (saved && !expense) {
-      setTitle("");
-      setAmount("");
-      setCategory("Food");
-      setDate(toDateInputValue());
-      setNotes("");
+      const nextValues = getInitialValues(null);
+      setTitle(nextValues.title);
+      setAmount(nextValues.amount);
+      setCategory(nextValues.category);
+      setDate(nextValues.date);
+      setNotes(nextValues.notes);
     }
   }
 

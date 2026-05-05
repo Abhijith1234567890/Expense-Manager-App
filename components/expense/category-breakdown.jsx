@@ -1,7 +1,7 @@
 "use client";
 import { formatCurrency } from "@/lib/money";
 
-export function CategoryBreakedown({ summary }) {
+export function CategoryBreakdown({ summary }) {
   const maxCents = Math.max(
     ...summary.categoryTotals.map((item) => item.amountCents),
     1,

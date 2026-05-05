@@ -4,7 +4,7 @@ import { ExpenseDashboard } from "@/components/expense/expense-dashboard";
 import { getCurrentSession } from "@/lib/auth/server";
 import { buildExpensesApiPath } from "@/lib/expense-query";
 import { getExpenseList } from "@/lib/expense-service";
-import { expenseFiltersSchema } from "@/lib/validators/expense";
+import { expenseFiltersSchema } from "@/lib/validations/expense";
 
 export const dynamic = "force-dynamic";
 export const metadata = {
