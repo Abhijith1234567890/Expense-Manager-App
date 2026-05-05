@@ -1,6 +1,6 @@
 "use client";
-import { Plus, WalletCards } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { Plus, WalletCards, X } from "lucide-react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import useSWR from "swr";
 import { CategoryBreakdown } from "@/components/expense/category-breakdown";
 import { ExpenseFilters } from "@/components/expense/expense-filters";
@@ -27,15 +27,29 @@ async function parseMutationResponse(res) {
   }
 }
 
+const SPOTLIGHT_TRANSITION =
+  "top 360ms cubic-bezier(0.22, 1, 0.36, 1), left 360ms cubic-bezier(0.22, 1, 0.36, 1), width 360ms cubic-bezier(0.22, 1, 0.36, 1), transform 360ms cubic-bezier(0.22, 1, 0.36, 1), box-shadow 360ms ease";
+
+function isMobileViewport() {
+  return window.matchMedia("(max-width: 767px)").matches;
+}
+
 export function ExpenseDashboard({ subtitle, title }) {
   const dispatch = useAppDispatch();
   const filters = useAppSelector(selectExpenseFilters);
   const summary = useAppSelector(selectExpenseSummary);
   const currentPageTotalCents = useAppSelector(selectCurrentPageTotalCents);
+  const formPanelRef = useRef(null);
+  const formSlotRef = useRef(null);
+  const resultsRef = useRef(null);
+  const spotlightTimerRef = useRef(null);
   const [editingExpense, setEditingExpense] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [deletingId, setDeletingId] = useState(null);
+  const [isFormSpotlighted, setIsFormSpotlighted] = useState(false);
   const [mutationError, setMutationError] = useState("");
+  const [spotlightStyle, setSpotlightStyle] = useState(null);
+  const [slotHeight, setSlotHeight] = useState(null);
   const apiPath = useMemo(
     () =>
       buildExpensesApiPath({
@@ -57,6 +71,87 @@ export function ExpenseDashboard({ subtitle, title }) {
     keepPreviousData: true,
   });
 
+  const scrollResultsIntoView = useCallback(() => {
+    if (!isMobileViewport()) {
+      return;
+    }
+
+    window.setTimeout(() => {
+      resultsRef.current?.scrollIntoView({
+        behavior: "smooth",
+        block: "start",
+      });
+    }, 80);
+  }, []);
+
+  const clearSpotlight = useCallback(() => {
+    window.clearTimeout(spotlightTimerRef.current);
+    setIsFormSpotlighted(false);
+    setSlotHeight(null);
+    setSpotlightStyle(null);
+  }, []);
+
+  const closeExpenseSpotlight = useCallback(() => {
+    if (!isFormSpotlighted) {
+      clearSpotlight();
+      return;
+    }
+
+    const slot = formSlotRef.current;
+
+    if (!slot) {
+      clearSpotlight();
+      return;
+    }
+
+    const rect = slot.getBoundingClientRect();
+    window.clearTimeout(spotlightTimerRef.current);
+    setSpotlightStyle({
+      left: `${rect.left}px`,
+      position: "fixed",
+      top: `${rect.top}px`,
+      transform: "translate(0, 0) scale(1)",
+      transition: SPOTLIGHT_TRANSITION,
+      width: `${rect.width}px`,
+      zIndex: 50,
+    });
+    spotlightTimerRef.current = window.setTimeout(clearSpotlight, 380);
+  }, [clearSpotlight, isFormSpotlighted]);
+
+  const openExpenseSpotlight = useCallback(() => {
+    const panel = formPanelRef.current;
+
+    if (!panel) {
+      return;
+    }
+
+    const rect = panel.getBoundingClientRect();
+    window.clearTimeout(spotlightTimerRef.current);
+    setSlotHeight(rect.height);
+    setIsFormSpotlighted(true);
+    setSpotlightStyle({
+      left: `${rect.left}px`,
+      position: "fixed",
+      top: `${rect.top}px`,
+      transform: "translate(0, 0) scale(1)",
+      transition: SPOTLIGHT_TRANSITION,
+      width: `${rect.width}px`,
+      zIndex: 50,
+    });
+
+    window.requestAnimationFrame(() => {
+      setSpotlightStyle({
+        left: "50%",
+        position: "fixed",
+        top: "50%",
+        transform: "translate(-50%, -50%) scale(1.02)",
+        transition: SPOTLIGHT_TRANSITION,
+        width: "min(calc(100vw - 2rem), 28rem)",
+        zIndex: 50,
+      });
+    });
+  }, []);
+
   useEffect(() => {
     if (data) {
       dispatch(
@@ -70,6 +165,50 @@ export function ExpenseDashboard({ subtitle, title }) {
       }
     }
   }, [data, dispatch, filters.page]);
+
+  useEffect(() => {
+    return () => window.clearTimeout(spotlightTimerRef.current);
+  }, []);
+
+  useEffect(() => {
+    if (!isFormSpotlighted) {
+      return undefined;
+    }
+
+    const previousOverflow = document.body.style.overflow;
+
+    function handleKeyDown(event) {
+      if (event.key === "Escape") {
+        closeExpenseSpotlight();
+      }
+    }
+
+    document.body.style.overflow = "hidden";
+    document.addEventListener("keydown", handleKeyDown);
+
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [closeExpenseSpotlight, isFormSpotlighted]);
+
+  function handleNewExpense() {
+    setEditingExpense(null);
+    setMutationError("");
+
+    window.requestAnimationFrame(() => {
+      if (isMobileViewport()) {
+        clearSpotlight();
+        formSlotRef.current?.scrollIntoView({
+          behavior: "smooth",
+          block: "start",
+        });
+        return;
+      }
+
+      openExpenseSpotlight();
+    });
+  }
 
   async function handleSubmit(input) {
     setIsSubmitting(true);
@@ -91,6 +230,7 @@ export function ExpenseDashboard({ subtitle, title }) {
         dispatch(setPage(1));
       }
       await mutate();
+      closeExpenseSpotlight();
       return true;
     } catch (caughtError) {
       setMutationError(
@@ -130,6 +270,21 @@ export function ExpenseDashboard({ subtitle, title }) {
       setDeletingId(null);
     }
   }
+
+  function handleEditExpense(expense) {
+    closeExpenseSpotlight();
+    setEditingExpense(expense);
+
+    if (isMobileViewport()) {
+      window.requestAnimationFrame(() => {
+        formSlotRef.current?.scrollIntoView({
+          behavior: "smooth",
+          block: "start",
+        });
+      });
+    }
+  }
+
   const expenses = data?.expenses ?? [];
   const pagination = data?.pagination ?? {
     page: filters.page,
@@ -138,15 +293,23 @@ export function ExpenseDashboard({ subtitle, title }) {
     totalPages: 1,
   };
   const liveSummary = data?.summary ?? summary;
-  
+
   return (
     <div className="grid gap-5">
+      {isFormSpotlighted ? (
+        <button
+          aria-label="Close expense form focus"
+          className="fixed inset-0 z-40 hidden bg-ink/25 backdrop-blur-sm md:block"
+          onClick={closeExpenseSpotlight}
+          type="button"
+        />
+      ) : null}
       <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-start">
         <div>
           <h1 className="text-2xl font-semibold text-ink">{title}</h1>
           <p className="mt-1 text-sm text-muted">{subtitle}</p>
         </div>
-        <Button onClick={() => setEditingExpense(null)}>
+        <Button onClick={handleNewExpense}>
           <Plus size={18} />
           New Expense
         </Button>
@@ -180,16 +343,19 @@ export function ExpenseDashboard({ subtitle, title }) {
         </div>
       </section>
 
-      <ExpenseFilters filters={filters} />
+      <ExpenseFilters
+        filters={filters}
+        onFilterChange={scrollResultsIntoView}
+      />
 
       <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_360px]">
-        <div className="grid gap-4">
+        <div className="grid scroll-mt-32 gap-4 md:scroll-mt-20" ref={resultsRef}>
           <ExpenseTable
             deletingId={deletingId}
             expenses={expenses}
             isLoading={isLoading && !data}
             onDelete={handleDelete}
-            onEdit={setEditingExpense}
+            onEdit={handleEditExpense}
           />
           <Pagination
             page={pagination.page}
@@ -198,12 +364,40 @@ export function ExpenseDashboard({ subtitle, title }) {
           />
         </div>
         <aside className="grid content-start gap-5">
-          <ExpenseForm
-            expense={editingExpense}
-            isSubmitting={isSubmitting}
-            onCancel={() => setEditingExpense(null)}
-            onSubmit={handleSubmit}
-          />
+          <div
+            id="expense-form"
+            ref={formSlotRef}
+            style={slotHeight ? { minHeight: `${slotHeight}px` } : undefined}
+          >
+            <div
+              className={
+                isFormSpotlighted
+                  ? "relative max-h-[calc(100vh-2rem)] overflow-y-auto rounded-xl shadow-[0_28px_90px_rgba(22,32,25,0.28)] ring-2 ring-forest/25"
+                  : "relative"
+              }
+              ref={formPanelRef}
+              style={spotlightStyle ?? undefined}
+            >
+              {isFormSpotlighted ? (
+                <Button
+                  aria-label="Close expense form focus"
+                  className="absolute right-3 top-3 z-10"
+                  onClick={closeExpenseSpotlight}
+                  size="icon"
+                  title="Close"
+                  variant="ghost"
+                >
+                  <X size={18} />
+                </Button>
+              ) : null}
+              <ExpenseForm
+                expense={editingExpense}
+                isSubmitting={isSubmitting}
+                onCancel={() => setEditingExpense(null)}
+                onSubmit={handleSubmit}
+              />
+            </div>
+          </div>
           <CategoryBreakdown summary={liveSummary} />
         </aside>
       </div>

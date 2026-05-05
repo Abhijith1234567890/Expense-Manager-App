@@ -13,16 +13,27 @@ import {
 } from "@/store/expense-slice";
 import { useAppDispatch } from "@/store/hooks";
 
-export function ExpenseFilters({ filters }) {
+const SEARCH_DEBOUNCE_MS = 500;
+
+export function ExpenseFilters({ filters, onFilterChange }) {
   const dispatch = useAppDispatch();
+
+  function updateFilter(action) {
+    dispatch(action);
+    onFilterChange?.();
+  }
 
   return (
     <section className="grid gap-3 rounded-lg border border-line bg-white p-4 shadow-soft lg:grid-cols-[minmax(220px,1fr)_180px_170px_150px_auto]">
-      <ExpenseSearchFilter key={filters.search} search={filters.search} />
+      <ExpenseSearchFilter
+        key={filters.search}
+        onFilterChange={onFilterChange}
+        search={filters.search}
+      />
       <label>
         <span className="sr-only">Category</span>
         <SelectInput
-          onChange={(e) => dispatch(setCategoryFilter(e.target.value))}
+          onChange={(e) => updateFilter(setCategoryFilter(e.target.value))}
           value={filters.category}
         >
           <option value="">All categories</option>
@@ -36,7 +47,7 @@ export function ExpenseFilters({ filters }) {
       <label>
         <span className="sr-only">Month</span>
         <TextInput
-          onChange={(e) => dispatch(setMonthFilter(e.target.value))}
+          onChange={(e) => updateFilter(setMonthFilter(e.target.value))}
           type="month"
           value={filters.month}
         />
@@ -45,7 +56,7 @@ export function ExpenseFilters({ filters }) {
         <span className="sr-only">Rows per page</span>
         <SelectInput
           onChange={(e) =>
-            dispatch(setPageSize(Number(e.target.value)))
+            updateFilter(setPageSize(Number(e.target.value)))
           }
           value={filters.pageSize}
         >
@@ -56,7 +67,7 @@ export function ExpenseFilters({ filters }) {
           ))}
         </SelectInput>
       </label>
-      <Button onClick={() => dispatch(resetFilters())} variant="secondary">
+      <Button onClick={() => updateFilter(resetFilters())} variant="secondary">
         <RotateCcw size={17} />
         Reset
       </Button>
@@ -64,7 +75,7 @@ export function ExpenseFilters({ filters }) {
   );
 }
 
-function ExpenseSearchFilter({ search }) {
+function ExpenseSearchFilter({ onFilterChange, search }) {
   const dispatch = useAppDispatch();
   const [searchDraft, setSearchDraft] = useState(search);
 
@@ -72,11 +83,12 @@ function ExpenseSearchFilter({ search }) {
     const timeout = setTimeout(() => {
       if (searchDraft !== search) {
         dispatch(setSearchFilter(searchDraft));
+        onFilterChange?.();
       }
-    }, 3000);
+    }, SEARCH_DEBOUNCE_MS);
 
     return () => clearTimeout(timeout);
-  }, [dispatch, search, searchDraft]);
+  }, [dispatch, onFilterChange, search, searchDraft]);
 
   return (
     <label className="relative block">
